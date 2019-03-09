@@ -1,0 +1,54 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import nltk
+nltk.download('stopwords')
+nltk.download('punkt')
+nltk.download('vader_lexicon')
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.cluster import KMeans
+from sklearn.metrics import accuracy_score
+import gensim
+
+from nltk.sentiment import SentimentIntensityAnalyzer
+sentiment = SentimentIntensityAnalyzer()
+
+yelp_reviews = pd.read_csv('D:/Gayathri P/Term 3/Unstuctured/Assignment_2/yelp_labelled.csv', sep='\t',header=None)
+yelp_reviews.head()
+
+yelp_reviews.columns = ['Reviews','Sentiment']
+yelp_reviews.head()
+
+docs_clean =[]
+docs = yelp_reviews['Reviews'].fillna(' ').str.lower().str.replace('[^a-z ]','')
+stopwords = nltk.corpus.stopwords.words('english')
+stopwords.extend(['', 'use', 'good', 'like', 'great','this','wa','thi'])
+stemmer = nltk.stem.PorterStemmer()
+for doc in docs:
+    words = doc.split(' ')
+    words_clean = [stemmer.stem(word) for word in words if stemmer.stem(word) not in stopwords]
+    docs_clean.append(words_clean)
+len(docs_clean)
+dictionary  = gensim.corpora.Dictionary(docs_clean)
+
+docs_bow = []
+for doc in docs_clean:
+    doc_bow = dictionary.doc2bow(doc)
+    docs_bow.append(doc_bow)
+    
+lda_model = gensim.models.LdaModel(docs_bow, id2word=dictionary, num_topics=4)
+lda_model.get_document_topics(docs_bow[0]) # Give probability of different topics
+
+lda_model.print_topics()  # help to name the topic
+
+topics = []
+for doc_bow in docs_bow:
+    doc2topic_prob=lda_model.get_document_topics(doc_bow)
+    doc2topic_prob= pd.DataFrame(doc2topic_prob,columns = ['topic','prob'])
+    topic = doc2topic_prob.sort_values('prob',ascending=False).iloc[0]['topic']
+    topics.append(topic)
+    
+yelp_reviews['topics']=topics
+yelp_reviews['topics'].value_counts().plot.bar(color='steelblue')
